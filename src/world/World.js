@@ -22,8 +22,9 @@ export class World {
     this.riverWarpZ  = new Noise(seed + 341);
     this.treeNoise   = new Noise(seed + 419);
 
-    this.water = new WaterSimulator(this);
-    this._waterTime = 0;
+    this.water        = new WaterSimulator(this);
+    this._waterTime   = 0;
+    this._pendingSave = {};
 
     let atlas;
     try {
@@ -164,6 +165,11 @@ export class World {
     if (!this.chunks.has(k)) {
       const chunk = new Chunk(cx, cz, this);
       this._generate(chunk);
+      if (this._pendingSave[k]) {
+        chunk.data.set(this._pendingSave[k]);
+        chunk.modified = true;
+        delete this._pendingSave[k];
+      }
       this.chunks.set(k, chunk);
       for (const [dx, dz] of [[-1,0],[1,0],[0,-1],[0,1]]) {
         const nb = this.chunks.get(this._key(cx + dx, cz + dz));
@@ -362,7 +368,8 @@ export class World {
     const lx = ((wx % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     const lz = ((wz % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
     chunk.data[chunk.idx(lx, wy, lz)] = type;
-    chunk.dirty = true;
+    chunk.dirty    = true;
+    chunk.modified = true;
     if (lx === 0)              this._markDirty(cx - 1, cz);
     if (lx === CHUNK_SIZE - 1) this._markDirty(cx + 1, cz);
     if (lz === 0)              this._markDirty(cx, cz - 1);
@@ -443,5 +450,18 @@ export class World {
     }
 
     this.water.update(dt);
+  }
+
+  loadSavedChunks(savedChunks) {
+    for (const [key, data] of Object.entries(savedChunks)) {
+      const chunk = this.chunks.get(key);
+      if (chunk) {
+        chunk.data.set(data);
+        chunk.dirty    = true;
+        chunk.modified = true;
+      } else {
+        this._pendingSave[key] = data;
+      }
+    }
   }
 }

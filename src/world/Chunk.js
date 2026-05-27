@@ -94,7 +94,8 @@ export class Chunk {
     this.mesh      = null;
     this.waterMesh = null;
     this.grassMesh = null;
-    this.dirty     = true;
+    this.dirty    = true;
+    this.modified = false;
   }
 
   idx(x, y, z) {
