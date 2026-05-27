@@ -151,10 +151,42 @@ export class Player {
       }
     }
 
-    this.camera.position.set(this.pos.x, this.pos.y + PLAYER_H - 0.15, this.pos.z);
+    const eyeX = this.pos.x;
+    const eyeY = this.pos.y + PLAYER_H - 0.15;
+    const eyeZ = this.pos.z;
     this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.y = controls.yaw;
-    this.camera.rotation.x = controls.pitch;
+
+    const p = controls.perspective;
+    if (p === 0) {
+      this.camera.position.set(eyeX, eyeY, eyeZ);
+      this.camera.rotation.y = controls.yaw;
+      this.camera.rotation.x = controls.pitch;
+    } else {
+      const DIST = 4.5;
+      const sinY = Math.sin(controls.yaw);
+      const cosY = Math.cos(controls.yaw);
+      const cosPFwd = Math.cos(controls.pitch);
+      const sinP    = Math.sin(controls.pitch);
+      if (p === 1) {
+        // Third-person back: pull camera behind and above
+        this.camera.position.set(
+          eyeX + sinY * cosPFwd * DIST,
+          eyeY + sinP * DIST + 0.5,
+          eyeZ + cosY * cosPFwd * DIST,
+        );
+        this.camera.rotation.y = controls.yaw;
+        this.camera.rotation.x = controls.pitch;
+      } else {
+        // Third-person front: push camera in front, flip to face player
+        this.camera.position.set(
+          eyeX - sinY * cosPFwd * DIST,
+          eyeY + sinP * DIST + 0.5,
+          eyeZ - cosY * cosPFwd * DIST,
+        );
+        this.camera.rotation.y = controls.yaw + Math.PI;
+        this.camera.rotation.x = -controls.pitch;
+      }
+    }
   }
 
   damage(amount) {

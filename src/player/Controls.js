@@ -10,10 +10,13 @@ export class Controls {
     this.onLockChange = null;
     this.sprinting   = false;
     this._lastWTap   = 0;
+    // 0 = first-person, 1 = third-person back, 2 = third-person front
+    this.perspective = 0;
 
     document.addEventListener('keydown', e => {
       this.keys.add(e.code);
       if (['Space','KeyW','KeyA','KeyS','KeyD','Tab'].includes(e.code)) e.preventDefault();
+      if (e.code === 'F5') { e.preventDefault(); this.perspective = (this.perspective + 1) % 3; }
       if (e.code === 'KeyW') {
         const now = performance.now();
         if (now - this._lastWTap < 250) this.sprinting = true;

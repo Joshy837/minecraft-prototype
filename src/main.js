@@ -15,6 +15,7 @@ import { updateParticles } from './utils/particles.js';
 import { HUD } from './ui/HUD.js';
 import { UIManager } from './ui/UIManager.js';
 import { SaveManager } from './world/SaveManager.js';
+import { PlayerBody } from './player/PlayerBody.js';
 
 // --- Renderer ---
 const renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -212,6 +213,8 @@ function startGame(worldName, seed, saveData) {
   let lastHealth     = player.health;
   let _wasUnderwater = false;
 
+  const playerBody = new PlayerBody(scene);
+
   const dir = new THREE.Vector3();
   let lastTime = performance.now();
   let elapsed  = 0;
@@ -236,6 +239,7 @@ function startGame(worldName, seed, saveData) {
 
     if (!uiManager.inventoryOpen) {
       player.update(dt, controls);
+      playerBody.update(player.pos, controls.yaw, controls.perspective, dt);
       world.update(player.pos.x, player.pos.z, dt);
 
       for (let i = droppedItems.length - 1; i >= 0; i--) {
