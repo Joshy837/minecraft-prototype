@@ -436,6 +436,101 @@
       white-space: nowrap;
       box-shadow: 1px 1px 6px rgba(0,0,0,0.6);
     }
+
+    /* ── Home screen ── */
+    #home-screen {
+      position: fixed; inset: 0;
+      background: linear-gradient(160deg, #0b1624 0%, #162340 55%, #0b1624 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 60; gap: 12px;
+    }
+    #home-screen h1 {
+      font-size: 2.8rem; color: #fff;
+      font-weight: 800; letter-spacing: -0.03em;
+      text-shadow: 0 0 48px rgba(80,140,255,0.45), 0 2px 24px rgba(0,0,0,0.7);
+      margin-bottom: 4px;
+    }
+    #home-screen .home-subtitle {
+      font-size: 0.83rem; color: rgba(255,255,255,0.38);
+      letter-spacing: 0.04em; text-transform: uppercase;
+      margin-bottom: 30px;
+    }
+    .home-btn {
+      background: rgba(255,255,255,0.11);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 14px;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      font-size: 0.92rem; font-weight: 500;
+      padding: 13px 0; cursor: pointer; width: 240px; text-align: center;
+      transition: background 0.15s, border-color 0.15s;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    .home-btn:hover:not(:disabled) {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.3);
+    }
+    .home-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Create world modal ── */
+    #create-world-modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: none; align-items: center; justify-content: center;
+      z-index: 70;
+    }
+    #create-world-modal.open { display: flex; }
+    #create-world-panel {
+      background: rgba(14, 14, 28, 0.84);
+      backdrop-filter: blur(48px) saturate(180%);
+      -webkit-backdrop-filter: blur(48px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 22px;
+      padding: 32px 36px 28px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.09);
+      width: 360px;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    #create-world-panel h2 {
+      font-size: 1rem; font-weight: 600; letter-spacing: 0.01em;
+      color: #fff; text-align: center; margin-bottom: 2px;
+    }
+    .cw-field { display: flex; flex-direction: column; gap: 7px; }
+    .cw-field label {
+      font-size: 0.8rem; font-weight: 500;
+      color: rgba(255,255,255,0.5); letter-spacing: 0.02em;
+    }
+    .cw-field input {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 10px;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      font-size: 0.9rem; padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .cw-field input::placeholder { color: rgba(255,255,255,0.25); }
+    .cw-field input:focus {
+      border-color: rgba(10,132,255,0.55);
+      background: rgba(255,255,255,0.1);
+    }
+    .cw-buttons { display: flex; gap: 10px; margin-top: 4px; }
+    .cw-back-btn { flex: 0 0 80px; }
+    .cw-create-btn {
+      flex: 1;
+      background: rgba(10,132,255,0.72) !important;
+      border-color: rgba(10,132,255,0.35) !important;
+    }
+    .cw-create-btn:hover:not(:disabled) {
+      background: rgba(10,132,255,0.92) !important;
+      border-color: rgba(10,132,255,0.6) !important;
+    }
   </style>
 </head>
 <body>
@@ -455,8 +550,35 @@
   <div id="inv-cursor"></div>
   <div id="inv-tooltip"></div>
 
+  <!-- Home screen -->
+  <div id="home-screen">
+    <h1>Minecraft Prototype</h1>
+    <p class="home-subtitle">A voxel world experiment</p>
+    <button id="btn-new-world" class="home-btn">New World</button>
+    <button class="home-btn" disabled>Load World &nbsp;<span style="font-size:0.75em;opacity:0.6">coming soon</span></button>
+  </div>
+
+  <!-- Create world modal -->
+  <div id="create-world-modal">
+    <div id="create-world-panel">
+      <h2>Create New World</h2>
+      <div class="cw-field">
+        <label for="cw-name">World Name</label>
+        <input id="cw-name" type="text" placeholder="My World" maxlength="32" autocomplete="off" />
+      </div>
+      <div class="cw-field">
+        <label for="cw-seed">Seed <span style="opacity:0.5;font-weight:400">(optional)</span></label>
+        <input id="cw-seed" type="text" placeholder="Leave blank for random" maxlength="32" autocomplete="off" />
+      </div>
+      <div class="cw-buttons">
+        <button id="cw-back" class="home-btn cw-back-btn">Back</button>
+        <button id="cw-create" class="home-btn cw-create-btn">Create World</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Pause / start screen -->
-  <div id="pause-screen" class="open">
+  <div id="pause-screen">
     <h1>Minecraft Prototype</h1>
     <p class="hint">
       WASD — Move &nbsp;|&nbsp; Space — Jump &nbsp;|&nbsp; Shift — Sprint<br>
@@ -465,6 +587,7 @@
     </p>
     <button id="pause-resume" class="pause-btn">Resume</button>
     <button id="pause-settings" class="pause-btn">⚙ Settings</button>
+    <button id="pause-quit" class="pause-btn" style="margin-top:6px;opacity:0.7">Quit to Title</button>
   </div>
 
   <!-- Settings modal -->

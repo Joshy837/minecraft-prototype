@@ -50,6 +50,7 @@ export class UIManager {
 
     document.getElementById('pause-resume').addEventListener('click', () => this._closePause());
     document.getElementById('pause-settings').addEventListener('click', () => this._openSettings());
+    document.getElementById('pause-quit').addEventListener('click', () => location.reload());
 
     document.addEventListener('keydown', e => this._onKeyDown(e));
     document.addEventListener('wheel', e => {

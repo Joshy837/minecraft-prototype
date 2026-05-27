@@ -9,18 +9,18 @@ import { WaterSimulator } from './WaterSimulator.js';
 import { SEA_LEVEL } from '../config.js';
 
 export class World {
-  constructor(scene) {
+  constructor(scene, seed = 42) {
     this.scene       = scene;
     this.renderDist  = 8;
     this.chunks      = new Map();
-    this.heightNoise = new Noise(42);
-    this.caveNoise   = new Noise(137);
-    this.lakeNoise   = new Noise(73);
-    this.biomeNoise  = new Noise(199);
-    this.riverNoise  = new Noise(251);
-    this.riverWarpX  = new Noise(317);
-    this.riverWarpZ  = new Noise(383);
-    this.treeNoise   = new Noise(461);
+    this.heightNoise = new Noise(seed);
+    this.caveNoise   = new Noise(seed + 95);
+    this.lakeNoise   = new Noise(seed + 31);
+    this.biomeNoise  = new Noise(seed + 157);
+    this.riverNoise  = new Noise(seed + 209);
+    this.riverWarpX  = new Noise(seed + 275);
+    this.riverWarpZ  = new Noise(seed + 341);
+    this.treeNoise   = new Noise(seed + 419);
 
     this.water = new WaterSimulator(this);
     this._waterTime = 0;
