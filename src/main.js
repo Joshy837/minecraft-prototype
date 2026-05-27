@@ -181,16 +181,20 @@ function startGame(worldName, seed, saveData) {
   if (saveData) {
     world.loadSavedChunks(saveData.chunks);
     player.pos.set(saveData.player.pos.x, saveData.player.pos.y, saveData.player.pos.z);
-    player.health   = saveData.player.health;
-    player.creative = saveData.player.creative;
-    player.flying   = saveData.player.flying;
-    sky.time        = saveData.time;
+    player.health    = saveData.player.health;
+    player.creative  = saveData.player.creative;
+    player.flying    = saveData.player.flying;
+    controls.yaw     = saveData.player.yaw   ?? 0;
+    controls.pitch   = saveData.player.pitch ?? 0;
+    sky.time         = saveData.time;
   } else {
     const spawnPt = world.findLandSpawn(0, 0);
     player.pos.set(spawnPt.x, spawnPt.y, spawnPt.z);
   }
 
   async function doSave() {
+    player.yaw   = controls.yaw;
+    player.pitch = controls.pitch;
     await SaveManager.save(worldName, seed, world, player, sky);
   }
 

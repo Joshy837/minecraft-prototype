@@ -52,6 +52,8 @@ export const SaveManager = {
         health:   player.health,
         creative: player.creative,
         flying:   player.flying,
+        yaw:      player.yaw ?? 0,
+        pitch:    player.pitch ?? 0,
       },
       chunks,
       updated_at: new Date().toISOString(),
