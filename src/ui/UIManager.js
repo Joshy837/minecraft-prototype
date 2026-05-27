@@ -12,6 +12,7 @@ export class UIManager {
     this._pauseOpen         = false;
     this._settingsOpen      = false;
     this._closingInventory  = false;
+    this.onQuit             = null;
 
     this._pauseScreen   = document.getElementById('pause-screen');
     this._settingsModal = document.getElementById('settings-modal');
@@ -50,7 +51,10 @@ export class UIManager {
 
     document.getElementById('pause-resume').addEventListener('click', () => this._closePause());
     document.getElementById('pause-settings').addEventListener('click', () => this._openSettings());
-    document.getElementById('pause-quit').addEventListener('click', () => location.reload());
+    document.getElementById('pause-quit').addEventListener('click', async () => {
+      if (this.onQuit) await this.onQuit();
+      location.reload();
+    });
 
     document.addEventListener('keydown', e => this._onKeyDown(e));
     document.addEventListener('wheel', e => {

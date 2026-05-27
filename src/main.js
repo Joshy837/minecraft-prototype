@@ -14,6 +14,7 @@ import { CommandHandler } from './game/CommandHandler.js';
 import { updateParticles } from './utils/particles.js';
 import { HUD } from './ui/HUD.js';
 import { UIManager } from './ui/UIManager.js';
+import { SaveManager } from './world/SaveManager.js';
 
 // --- Renderer ---
 const renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -35,24 +36,100 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// --- Home screen ---
+// --- Home screen elements ---
 const homeScreen  = document.getElementById('home-screen');
 const createModal = document.getElementById('create-world-modal');
+const loadModal   = document.getElementById('load-world-modal');
 const cwName      = document.getElementById('cw-name');
 const cwSeed      = document.getElementById('cw-seed');
+const btnNewWorld  = document.getElementById('btn-new-world');
+const btnLoadWorld = document.getElementById('btn-load-world');
 
-document.getElementById('btn-new-world').addEventListener('click', () => {
+// Disable buttons until auth is ready
+btnNewWorld.disabled  = true;
+btnLoadWorld.disabled = true;
+
+SaveManager.init().catch(err => {
+  console.error('Auth failed:', err);
+}).finally(() => {
+  btnNewWorld.disabled  = false;
+  btnLoadWorld.disabled = false;
+});
+
+// --- Home screen wiring ---
+btnNewWorld.addEventListener('click', () => {
   createModal.classList.add('open');
   cwName.focus();
 });
+
+btnLoadWorld.addEventListener('click', () => openLoadModal());
 
 document.getElementById('cw-back').addEventListener('click', () => {
   createModal.classList.remove('open');
 });
 
-document.getElementById('cw-create').addEventListener('click', launchGame);
-cwSeed.addEventListener('keydown', e => { if (e.key === 'Enter') launchGame(); });
+document.getElementById('cw-create').addEventListener('click', launchNewGame);
+cwSeed.addEventListener('keydown', e => { if (e.key === 'Enter') launchNewGame(); });
 cwName.addEventListener('keydown', e => { if (e.key === 'Enter') cwSeed.focus(); });
+
+document.getElementById('lw-back').addEventListener('click', () => {
+  loadModal.classList.remove('open');
+});
+
+// --- Helpers ---
+function fmtBytes(b) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+async function openLoadModal() {
+  const container = document.getElementById('lw-list');
+  container.innerHTML = '<p class="lw-empty">Loading…</p>';
+  loadModal.classList.add('open');
+
+  const list = await SaveManager.list();
+  container.innerHTML = '';
+
+  if (list.length === 0) {
+    container.innerHTML = '<p class="lw-empty">No saved worlds yet.</p>';
+  } else {
+    for (const { name, lastPlayed } of list) {
+      const row = document.createElement('div');
+      row.className = 'lw-row';
+      const date = new Date(lastPlayed).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      const size = fmtBytes(await SaveManager.worldBytes(name));
+      row.innerHTML = `
+        <div class="lw-info">
+          <span class="lw-name">${name}</span>
+          <span class="lw-meta">Last played ${date} &nbsp;·&nbsp; ${size}</span>
+        </div>
+        <div class="lw-actions">
+          <button class="lw-btn lw-play" data-name="${name}">Play</button>
+          <button class="lw-btn lw-del" data-name="${name}">Delete</button>
+        </div>`;
+      container.appendChild(row);
+    }
+    container.querySelectorAll('.lw-play').forEach(btn => {
+      btn.addEventListener('click', () => launchLoadGame(btn.dataset.name));
+    });
+    container.querySelectorAll('.lw-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (confirm(`Delete "${btn.dataset.name}"? This cannot be undone.`)) {
+          await SaveManager.delete(btn.dataset.name);
+          openLoadModal();
+        }
+      });
+    });
+  }
+
+  const { used, quota } = await SaveManager.storageInfo();
+  const pct = Math.min(used / quota * 100, 100);
+  document.getElementById('lw-storage-text').textContent = `${fmtBytes(used)} / ${fmtBytes(quota)}`;
+  const fill = document.getElementById('lw-storage-fill');
+  fill.style.width = `${pct}%`;
+  fill.className = 'lw-storage-fill' + (pct >= 90 ? ' full' : pct >= 70 ? ' warn' : '');
+}
 
 function hashSeed(str) {
   let h = 0;
@@ -60,16 +137,25 @@ function hashSeed(str) {
   return Math.abs(h) || 1;
 }
 
-function launchGame() {
+function launchNewGame() {
+  const name    = cwName.value.trim() || 'My World';
   const seedStr = cwSeed.value.trim();
-  const seed = seedStr ? hashSeed(seedStr) : Math.floor(Math.random() * 2_147_483_647) + 1;
-  homeScreen.remove();
+  const seed    = seedStr ? hashSeed(seedStr) : Math.floor(Math.random() * 2_147_483_647) + 1;
   createModal.classList.remove('open');
-  startGame(seed);
+  homeScreen.remove();
+  startGame(name, seed, null);
 }
 
-// --- Game (deferred until world creation) ---
-function startGame(seed) {
+async function launchLoadGame(name) {
+  const save = await SaveManager.load(name);
+  if (!save) { alert('Failed to load world.'); return; }
+  loadModal.classList.remove('open');
+  homeScreen.remove();
+  startGame(name, save.seed, save);
+}
+
+// --- Game ---
+function startGame(worldName, seed, saveData) {
   const world    = new World(scene, seed);
   const player   = new Player(camera, world);
   const controls = new Controls(renderer.domElement);
@@ -90,8 +176,32 @@ function startGame(seed) {
   const inventory = new Inventory(world.atlasCanvas, inventoryState);
   const uiManager = new UIManager({ renderer, controls, commandInput, inventory, player, hud, world });
 
-  const spawnPt = world.findLandSpawn(0, 0);
-  player.pos.set(spawnPt.x, spawnPt.y, spawnPt.z);
+  world.update(0, 0);
+
+  if (saveData) {
+    world.loadSavedChunks(saveData.chunks);
+    player.pos.set(saveData.player.pos.x, saveData.player.pos.y, saveData.player.pos.z);
+    player.health   = saveData.player.health;
+    player.creative = saveData.player.creative;
+    player.flying   = saveData.player.flying;
+    sky.time        = saveData.time;
+  } else {
+    const spawnPt = world.findLandSpawn(0, 0);
+    player.pos.set(spawnPt.x, spawnPt.y, spawnPt.z);
+  }
+
+  async function doSave() {
+    await SaveManager.save(worldName, seed, world, player, sky);
+  }
+
+  window.addEventListener('beforeunload', doSave);
+  uiManager.onQuit = async () => {
+    await doSave();
+    window.removeEventListener('beforeunload', doSave);
+  };
+
+  const AUTOSAVE_INTERVAL = 30;
+  let autosaveTimer = 0;
 
   const damageFlash  = document.getElementById('damage-flash');
   const waterOverlay = document.getElementById('water-overlay');
@@ -102,8 +212,6 @@ function startGame(seed) {
   let lastTime = performance.now();
   let elapsed  = 0;
 
-  world.update(0, 0);
-
   function loop() {
     requestAnimationFrame(loop);
 
@@ -112,6 +220,12 @@ function startGame(seed) {
     lastTime  = now;
     elapsed  += dt;
     grassUniforms.time.value = elapsed;
+
+    autosaveTimer += dt;
+    if (autosaveTimer >= AUTOSAVE_INTERVAL) {
+      doSave();
+      autosaveTimer = 0;
+    }
 
     sky.update(dt, camera, world.material, world.waterMaterial);
     updateParticles(dt);
