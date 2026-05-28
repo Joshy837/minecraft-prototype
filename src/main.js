@@ -19,6 +19,16 @@ import { PlayerBody } from './player/PlayerBody.js';
 import { Multiplayer } from './lib/Multiplayer.js';
 import { MobileControls } from './ui/MobileControls.js';
 
+// Lock to landscape on mobile PWA
+if (
+  navigator.maxTouchPoints > 0 &&
+  (window.matchMedia('(display-mode: fullscreen)').matches ||
+   window.matchMedia('(display-mode: standalone)').matches ||
+   navigator.standalone === true)
+) {
+  screen.orientation?.lock('landscape').catch(() => {});
+}
+
 // --- Renderer ---
 const renderer = new THREE.WebGLRenderer({ antialias: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -69,25 +79,13 @@ const btnNewWorld  = document.getElementById('btn-new-world');
 const btnLoadWorld = document.getElementById('btn-load-world');
 const btnJoinWorld = document.getElementById('btn-join-world');
 
-// Disable buttons until auth is ready
-btnNewWorld.disabled  = true;
-btnLoadWorld.disabled = true;
-btnJoinWorld.disabled = true;
-
 SaveManager.init().then(() => {
   if (_joinWorldId && _joinSeed) {
     homeScreen.remove();
     startGame(null, _joinSeed, null, _joinWorldId);
-  } else {
-    btnNewWorld.disabled  = false;
-    btnLoadWorld.disabled = false;
-    btnJoinWorld.disabled = false;
   }
 }).catch(err => {
   console.error('Auth failed:', err);
-  btnNewWorld.disabled  = false;
-  btnLoadWorld.disabled = false;
-  btnJoinWorld.disabled = false;
 });
 
 // --- Home screen wiring ---

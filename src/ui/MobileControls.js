@@ -34,14 +34,14 @@ export class MobileControls {
         pointer-events: none; touch-action: none;
         -webkit-user-select: none; user-select: none;
       }
-      /* Left zone: joystick lives here */
+      /* Right zone: joystick / movement */
       #mc-joy-zone {
-        position: absolute; left: 0; top: 0; bottom: 0; width: 44%;
+        position: absolute; right: 0; top: 0; bottom: 0; width: 56%;
         pointer-events: auto; touch-action: none;
       }
-      /* Right zone: look + place-on-tap */
+      /* Left zone: look + place-on-tap */
       #mc-look-zone {
-        position: absolute; right: 0; top: 0; bottom: 0; width: 56%;
+        position: absolute; left: 0; top: 0; bottom: 0; width: 44%;
         pointer-events: auto; touch-action: none;
         z-index: 1;
       }
@@ -367,7 +367,7 @@ export class MobileControls {
     const hint = document.querySelector('#pause-screen .hint');
     if (hint) {
       hint.innerHTML =
-        'Left — Move &nbsp;|&nbsp; Right — Look<br>' +
+        'Left — Look &nbsp;|&nbsp; Right — Move<br>' +
         'Tap right — Place &nbsp;|&nbsp; ⛏ — Break &nbsp;|&nbsp; ⬆ — Jump<br>' +
         '⬇ — Sneak &nbsp;|&nbsp; ☰ — Inventory';
     }
