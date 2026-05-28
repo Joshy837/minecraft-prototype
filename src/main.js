@@ -229,7 +229,6 @@ function startGame(worldName, seed, saveData, worldId) {
   window.addEventListener('beforeunload', handleUnload);
   uiManager.onQuit = async () => {
     multiplayer.leave();
-    shareBtn.remove();
     window.removeEventListener('beforeunload', handleUnload);
     await doSave();
   };
@@ -250,18 +249,6 @@ function startGame(worldName, seed, saveData, worldId) {
     yaw: controls.yaw,
     vel: { x: player.vel.x, y: player.vel.y, z: player.vel.z },
   }));
-
-  // Share link button
-  const shareBtn = document.createElement('button');
-  shareBtn.id = 'mp-share-btn';
-  shareBtn.textContent = 'Share Link';
-  shareBtn.style.cssText = 'position:fixed;top:8px;right:8px;z-index:200;padding:4px 10px;background:#222;color:#fff;border:1px solid #555;border-radius:4px;cursor:pointer;font-size:12px;opacity:0.85';
-  shareBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(location.href);
-    shareBtn.textContent = 'Copied!';
-    setTimeout(() => { shareBtn.textContent = 'Share Link'; }, 1500);
-  });
-  document.body.appendChild(shareBtn);
 
   const dir = new THREE.Vector3();
   let lastTime = performance.now();
