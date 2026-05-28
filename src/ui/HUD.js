@@ -137,9 +137,11 @@ export class HUD {
   refreshGamemodeLabel() {
     if (!this._player.creative) {
       this._gamemodeLabel.style.display = 'none';
+      this._heartsEl.style.display = '';
       return;
     }
     this._gamemodeLabel.style.display = 'block';
+    this._heartsEl.style.display = 'none';
     this._gamemodeLabel.textContent   = this._player.flying ? 'Creative | Flying' : 'Creative';
   }
 
