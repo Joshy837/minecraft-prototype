@@ -34,7 +34,9 @@ export class UIManager {
     const origClose = this._commandInput.close.bind(this._commandInput);
     this._commandInput.close = () => {
       origClose();
-      if (!this.inventoryOpen) this._renderer.domElement.requestPointerLock().catch(() => {});
+      if (!this.inventoryOpen && !this._controls.mobile) {
+        this._renderer.domElement.requestPointerLock().catch(() => {});
+      }
     };
 
     this._inventory.onClose = () => this._closeInventory();
@@ -75,7 +77,7 @@ export class UIManager {
     if (e.code === 'KeyE') {
       e.preventDefault();
       if (this.inventoryOpen) this._closeInventory();
-      else if (this._controls.locked) this._openInventory();
+      else this._openInventory();
       return;
     }
     if (e.code === 'Escape') {
@@ -93,6 +95,15 @@ export class UIManager {
     if (n >= 1 && n <= 9) this._hud.selectSlot(n - 1);
   }
 
+  // Public: called by MobileControls pause button
+  pause() { this._openPause(); }
+
+  // Public: called by MobileControls inventory button
+  toggleInventory() {
+    if (this.inventoryOpen) this._closeInventory();
+    else this._openInventory();
+  }
+
   _openPause() {
     this._pauseOpen = true;
     this._pauseScreen.classList.add('open');
@@ -101,6 +112,7 @@ export class UIManager {
   _closePause() {
     this._pauseOpen = false;
     this._pauseScreen.classList.remove('open');
+    if (this._controls.mobile) return;
     this._renderer.domElement.requestPointerLock().catch(() => this._openPause());
   }
 
@@ -124,9 +136,10 @@ export class UIManager {
   }
 
   _closeInventory() {
-    this.inventoryOpen         = false;
-    this._closingInventory     = true;
+    this.inventoryOpen     = false;
+    this._closingInventory = true;
     this._inventory.close();
+    if (this._controls.mobile) return;
     this._renderer.domElement.requestPointerLock().catch(() => this._openPause());
   }
 }

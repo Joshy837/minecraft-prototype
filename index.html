@@ -2,7 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1624" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MC Proto" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
   <title>Minecraft Prototype</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -11,7 +17,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
       -webkit-font-smoothing: antialiased;
     }
-    canvas { display: block; width: 100vw; height: 100vh; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
 
     /* ── Crosshair ── */
     #crosshair {
@@ -38,7 +44,9 @@
 
     /* ── HUD Bottom ── */
     #hud-bottom {
-      position: fixed; bottom: 20px; left: 50%;
+      position: fixed;
+      bottom: max(20px, env(safe-area-inset-bottom, 0px));
+      left: 50%;
       transform: translateX(-50%);
       display: flex; flex-direction: column;
       align-items: flex-start; gap: 8px;
@@ -493,7 +501,7 @@
       border-radius: 22px;
       padding: 32px 36px 28px;
       box-shadow: 0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.09);
-      width: 360px;
+      width: min(360px, calc(100vw - 32px));
       display: flex; flex-direction: column; gap: 18px;
     }
     #create-world-panel h2 {
@@ -532,6 +540,61 @@
       border-color: rgba(10,132,255,0.6) !important;
     }
 
+    /* ── Join world modal ── */
+    #join-world-modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: none; align-items: center; justify-content: center;
+      z-index: 70;
+    }
+    #join-world-modal.open { display: flex; }
+    #join-world-panel {
+      background: rgba(14, 14, 28, 0.84);
+      backdrop-filter: blur(48px) saturate(180%);
+      -webkit-backdrop-filter: blur(48px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 22px;
+      padding: 32px 36px 28px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.09);
+      width: min(360px, calc(100vw - 32px));
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    #join-world-panel h2 {
+      font-size: 1rem; font-weight: 600; letter-spacing: 0.01em;
+      color: #fff; text-align: center; margin-bottom: 2px;
+    }
+
+    /* ── Pause screen join code ── */
+    #pause-join-code {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      padding: 8px 16px;
+      margin-bottom: 4px;
+    }
+    .pause-join-label {
+      font-size: 0.72rem; font-weight: 500;
+      color: rgba(255,255,255,0.45); letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .pause-join-code-value {
+      font-family: 'SF Mono', 'Menlo', 'Courier New', monospace;
+      font-size: 0.88rem; font-weight: 600; color: #30d158;
+      letter-spacing: 0.06em; flex: 1; text-align: center;
+    }
+    .pause-join-copy {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px; color: rgba(255,255,255,0.75);
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      font-size: 0.75rem; font-weight: 500;
+      padding: 4px 10px; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .pause-join-copy:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
     /* ── Load world modal ── */
     #load-world-modal {
       position: fixed; inset: 0;
@@ -550,7 +613,7 @@
       border-radius: 22px;
       padding: 28px 32px 24px;
       box-shadow: 0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.09);
-      width: 400px; max-height: 70vh;
+      width: min(400px, calc(100vw - 32px)); max-height: 70vh;
       display: flex; flex-direction: column; gap: 16px;
     }
     #load-world-panel h2 {
@@ -628,6 +691,7 @@
     <p class="home-subtitle">A voxel world experiment</p>
     <button id="btn-new-world" class="home-btn">New World</button>
     <button id="btn-load-world" class="home-btn">Load World</button>
+    <button id="btn-join-world" class="home-btn">Join World</button>
   </div>
 
   <!-- Create world modal -->
@@ -669,6 +733,22 @@
     </div>
   </div>
 
+  <!-- Join world modal -->
+  <div id="join-world-modal">
+    <div id="join-world-panel">
+      <h2>Join World</h2>
+      <div class="cw-field">
+        <label for="jw-code">Join Code</label>
+        <input id="jw-code" type="text" placeholder="XXXXXX-1234567890" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+      </div>
+      <p id="jw-error" style="font-size:0.78rem;color:#ff453a;min-height:1.2em;margin-top:-6px;"></p>
+      <div class="cw-buttons">
+        <button id="jw-back"  class="home-btn cw-back-btn">Back</button>
+        <button id="jw-join"  class="home-btn cw-create-btn">Join</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Pause / start screen -->
   <div id="pause-screen">
     <h1>Minecraft Prototype</h1>
@@ -677,6 +757,11 @@
       Left click — Break &nbsp;|&nbsp; Right click — Place<br>
       1-9 / Scroll — Select slot &nbsp;|&nbsp; E — Inventory &nbsp;|&nbsp; Esc — Pause
     </p>
+    <div id="pause-join-code">
+      <span class="pause-join-label">Join Code</span>
+      <span class="pause-join-code-value"></span>
+      <button class="pause-join-copy">Copy</button>
+    </div>
     <button id="pause-resume" class="pause-btn">Resume</button>
     <button id="pause-settings" class="pause-btn">⚙ Settings</button>
     <button id="pause-quit" class="pause-btn" style="margin-top:6px;opacity:0.7">Quit to Title</button>

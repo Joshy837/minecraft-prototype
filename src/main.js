@@ -17,6 +17,7 @@ import { UIManager } from './ui/UIManager.js';
 import { SaveManager } from './world/SaveManager.js';
 import { PlayerBody } from './player/PlayerBody.js';
 import { Multiplayer } from './lib/Multiplayer.js';
+import { MobileControls } from './ui/MobileControls.js';
 
 // --- Renderer ---
 const renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -38,27 +39,40 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// --- URL-based multiplayer join ---
-const _urlParams   = new URLSearchParams(location.search);
-const _joinWorldId = _urlParams.get('world');
-const _joinSeed    = _urlParams.get('seed') ? parseInt(_urlParams.get('seed'), 10) : null;
-
+// --- Join code helpers ---
+// Code format: "WORLDID-SEED"  e.g. "ABC123-987654321"
 function genWorldId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
+function encodeJoinCode(worldId, seed) { return `${worldId}-${seed}`; }
+function decodeJoinCode(code) {
+  const parts = code.trim().toUpperCase().split('-');
+  if (parts.length !== 2) return null;
+  const seed = parseInt(parts[1], 10);
+  if (!parts[0] || isNaN(seed)) return null;
+  return { worldId: parts[0], seed };
+}
+
+// Legacy URL-based join (browser link sharing still works)
+const _urlParams   = new URLSearchParams(location.search);
+const _joinWorldId = _urlParams.get('world');
+const _joinSeed    = _urlParams.get('seed') ? parseInt(_urlParams.get('seed'), 10) : null;
 
 // --- Home screen elements ---
 const homeScreen  = document.getElementById('home-screen');
 const createModal = document.getElementById('create-world-modal');
 const loadModal   = document.getElementById('load-world-modal');
+const joinModal   = document.getElementById('join-world-modal');
 const cwName      = document.getElementById('cw-name');
 const cwSeed      = document.getElementById('cw-seed');
 const btnNewWorld  = document.getElementById('btn-new-world');
 const btnLoadWorld = document.getElementById('btn-load-world');
+const btnJoinWorld = document.getElementById('btn-join-world');
 
 // Disable buttons until auth is ready
 btnNewWorld.disabled  = true;
 btnLoadWorld.disabled = true;
+btnJoinWorld.disabled = true;
 
 SaveManager.init().then(() => {
   if (_joinWorldId && _joinSeed) {
@@ -67,11 +81,13 @@ SaveManager.init().then(() => {
   } else {
     btnNewWorld.disabled  = false;
     btnLoadWorld.disabled = false;
+    btnJoinWorld.disabled = false;
   }
 }).catch(err => {
   console.error('Auth failed:', err);
   btnNewWorld.disabled  = false;
   btnLoadWorld.disabled = false;
+  btnJoinWorld.disabled = false;
 });
 
 // --- Home screen wiring ---
@@ -82,9 +98,32 @@ btnNewWorld.addEventListener('click', () => {
 
 btnLoadWorld.addEventListener('click', () => openLoadModal());
 
+btnJoinWorld.addEventListener('click', () => {
+  joinModal.classList.add('open');
+  document.getElementById('jw-code').value = '';
+  document.getElementById('jw-error').textContent = '';
+  document.getElementById('jw-code').focus();
+});
+
 document.getElementById('cw-back').addEventListener('click', () => {
   createModal.classList.remove('open');
 });
+
+// --- Join world modal wiring ---
+function launchJoinGame() {
+  const raw     = document.getElementById('jw-code').value;
+  const parsed  = decodeJoinCode(raw);
+  if (!parsed) {
+    document.getElementById('jw-error').textContent = 'Invalid code. Format: XXXXXX-1234567890';
+    return;
+  }
+  joinModal.classList.remove('open');
+  homeScreen.remove();
+  startGame(null, parsed.seed, null, parsed.worldId);
+}
+document.getElementById('jw-join').addEventListener('click', launchJoinGame);
+document.getElementById('jw-back').addEventListener('click', () => joinModal.classList.remove('open'));
+document.getElementById('jw-code').addEventListener('keydown', e => { if (e.key === 'Enter') launchJoinGame(); });
 
 document.getElementById('cw-create').addEventListener('click', launchNewGame);
 cwSeed.addEventListener('keydown', e => { if (e.key === 'Enter') launchNewGame(); });
@@ -197,6 +236,21 @@ function startGame(worldName, seed, saveData, worldId) {
 
   const inventory = new Inventory(world.atlasCanvas, inventoryState);
   const uiManager = new UIManager({ renderer, controls, commandInput, inventory, player, hud, world });
+  new MobileControls(controls, uiManager);
+
+  // Show join code in pause screen so the host can share it
+  const joinCodeEl = document.getElementById('pause-join-code');
+  if (joinCodeEl) {
+    const code = encodeJoinCode(worldId, seed);
+    joinCodeEl.querySelector('.pause-join-code-value').textContent = code;
+    joinCodeEl.querySelector('.pause-join-copy').onclick = () => {
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = joinCodeEl.querySelector('.pause-join-copy');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+      });
+    };
+  }
 
   world.update(0, 0);
 
@@ -332,7 +386,9 @@ function startGame(worldName, seed, saveData, worldId) {
   }
 
   loop();
-  renderer.domElement.requestPointerLock().catch(() => {
-    document.addEventListener('click', () => renderer.domElement.requestPointerLock(), { once: true });
-  });
+  if (!controls.mobile) {
+    renderer.domElement.requestPointerLock().catch(() => {
+      document.addEventListener('click', () => renderer.domElement.requestPointerLock(), { once: true });
+    });
+  }
 }

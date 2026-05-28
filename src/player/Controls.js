@@ -12,6 +12,8 @@ export class Controls {
     this._lastWTap   = 0;
     // 0 = first-person, 1 = third-person back, 2 = third-person front
     this.perspective = 0;
+    this.mobile      = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    if (this.mobile) this.locked = true;
 
     document.addEventListener('keydown', e => {
       this.keys.add(e.code);
@@ -42,15 +44,40 @@ export class Controls {
     document.addEventListener('mouseup',   e => this._held.delete(e.button));
     document.addEventListener('contextmenu', e => e.preventDefault());
 
-    document.addEventListener('pointerlockchange', () => {
-      this.locked = !!document.pointerLockElement;
-      if (!this.locked) this._held.clear();
-      this.onLockChange?.(this.locked);
-    });
+    if (!this.mobile) {
+      document.addEventListener('pointerlockchange', () => {
+        this.locked = !!document.pointerLockElement;
+        if (!this.locked) this._held.clear();
+        this.onLockChange?.(this.locked);
+      });
 
-    document.getElementById('pause-screen').addEventListener('click', e => {
-      if (!this.locked && e.target === e.currentTarget) canvas.requestPointerLock();
-    });
+      document.getElementById('pause-screen').addEventListener('click', e => {
+        if (!this.locked && e.target === e.currentTarget) canvas.requestPointerLock();
+      });
+    }
+  }
+
+  // Called by MobileControls to drive camera without pointer lock
+  simulateMouseDelta(dx, dy) {
+    this.yaw   -= dx * this.sensitivity;
+    this.pitch  = Math.max(-1.5, Math.min(1.5, this.pitch - dy * this.sensitivity));
+  }
+
+  // Drive WASD / Space / Shift keys from touch
+  simulateKey(code, down) {
+    if (down) this.keys.add(code);
+    else this.keys.delete(code);
+  }
+
+  // Drive mouse-button held state from touch
+  simulateHeld(button, down) {
+    if (down) this._held.add(button);
+    else { this._held.delete(button); this._clicks.delete(button); }
+  }
+
+  // Fire a one-shot click (e.g. place block) from touch
+  simulateClick(button) {
+    this._clicks.add(button);
   }
 
   pressed(code)  { return this.keys.has(code); }
