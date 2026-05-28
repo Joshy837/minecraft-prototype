@@ -19,27 +19,42 @@ export class PlayerBody {
     this.legL  = box(0.22, 0.75, 0.25, legMats(),   0.13, 0.375, 0.00);
     this.legR  = box(0.22, 0.75, 0.25, legMats(),  -0.13, 0.375, 0.00);
 
+    this._mats = [];
     for (const part of [this.head, this.torso, this.armL, this.armR, this.legL, this.legR]) {
       this.group.add(part);
+      for (const m of part.material) this._mats.push(m);
     }
 
     this.group.visible = false;
     scene.add(this.group);
   }
 
-  update(playerPos, yaw, perspective, dt) {
+  update(playerPos, yaw, perspective, dt, vel, ambient) {
     this.group.visible = perspective !== 0;
     if (!this.group.visible) return;
 
     this.group.position.copy(playerPos);
     this.group.rotation.y = yaw;
 
-    const t = performance.now() / 1000;
-    const swing = Math.sin(t * 8) * 0.4;
-    this.armL.rotation.x =  swing;
-    this.armR.rotation.x = -swing;
-    this.legL.rotation.x = -swing;
-    this.legR.rotation.x =  swing;
+    if (ambient) {
+      const [ar, ag, ab] = ambient;
+      for (const m of this._mats) m.color.setRGB(ar, ag, ab);
+    }
+
+    const moving = vel && (Math.abs(vel.x) > 0.01 || Math.abs(vel.z) > 0.01);
+    if (moving) {
+      const t = performance.now() / 1000;
+      const swing = Math.sin(t * 8) * 0.4;
+      this.armL.rotation.x =  swing;
+      this.armR.rotation.x = -swing;
+      this.legL.rotation.x = -swing;
+      this.legR.rotation.x =  swing;
+    } else {
+      this.armL.rotation.x = 0;
+      this.armR.rotation.x = 0;
+      this.legL.rotation.x = 0;
+      this.legR.rotation.x = 0;
+    }
   }
 
   dispose() {

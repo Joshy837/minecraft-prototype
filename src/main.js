@@ -239,7 +239,7 @@ function startGame(worldName, seed, saveData) {
 
     if (!uiManager.inventoryOpen) {
       player.update(dt, controls);
-      playerBody.update(player.pos, controls.yaw, controls.perspective, dt);
+      playerBody.update(player.pos, controls.yaw, controls.perspective, dt, player.vel, sky.ambient);
       world.update(player.pos.x, player.pos.z, dt);
 
       for (let i = droppedItems.length - 1; i >= 0; i--) {

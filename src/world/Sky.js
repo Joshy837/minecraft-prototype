@@ -152,6 +152,7 @@ export class Sky {
   constructor(scene) {
     this._scene = scene;
     this.time      = 0.35;
+    this.ambient   = [1, 1, 1];
     this.dayLength = 480;
 
     // ── Sun ──
@@ -228,6 +229,7 @@ export class Sky {
 
     // ── World tint ──
     const [ar, ag, ab] = lerp(AMB_KF, t);
+    this.ambient = [ar, ag, ab];
     solidMat.color.setRGB(ar, ag, ab);
     waterMat.uniforms.uAmbient.value.set(ar, ag, ab);
     grassUniforms.uAmbient.value.setRGB(ar, ag, ab);
