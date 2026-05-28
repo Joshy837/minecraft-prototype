@@ -16,6 +16,7 @@ import { HUD } from './ui/HUD.js';
 import { UIManager } from './ui/UIManager.js';
 import { SaveManager } from './world/SaveManager.js';
 import { PlayerBody } from './player/PlayerBody.js';
+import { Multiplayer } from './lib/Multiplayer.js';
 
 // --- Renderer ---
 const renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -37,6 +38,15 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// --- URL-based multiplayer join ---
+const _urlParams   = new URLSearchParams(location.search);
+const _joinWorldId = _urlParams.get('world');
+const _joinSeed    = _urlParams.get('seed') ? parseInt(_urlParams.get('seed'), 10) : null;
+
+function genWorldId() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
 // --- Home screen elements ---
 const homeScreen  = document.getElementById('home-screen');
 const createModal = document.getElementById('create-world-modal');
@@ -50,9 +60,16 @@ const btnLoadWorld = document.getElementById('btn-load-world');
 btnNewWorld.disabled  = true;
 btnLoadWorld.disabled = true;
 
-SaveManager.init().catch(err => {
+SaveManager.init().then(() => {
+  if (_joinWorldId && _joinSeed) {
+    homeScreen.remove();
+    startGame(null, _joinSeed, null, _joinWorldId);
+  } else {
+    btnNewWorld.disabled  = false;
+    btnLoadWorld.disabled = false;
+  }
+}).catch(err => {
   console.error('Auth failed:', err);
-}).finally(() => {
   btnNewWorld.disabled  = false;
   btnLoadWorld.disabled = false;
 });
@@ -142,21 +159,25 @@ function launchNewGame() {
   const name    = cwName.value.trim() || 'My World';
   const seedStr = cwSeed.value.trim();
   const seed    = seedStr ? hashSeed(seedStr) : Math.floor(Math.random() * 2_147_483_647) + 1;
+  const worldId = genWorldId();
+  history.replaceState(null, '', `?world=${worldId}&seed=${seed}`);
   createModal.classList.remove('open');
   homeScreen.remove();
-  startGame(name, seed, null);
+  startGame(name, seed, null, worldId);
 }
 
 async function launchLoadGame(name) {
   const save = await SaveManager.load(name);
   if (!save) { alert('Failed to load world.'); return; }
+  const worldId = genWorldId();
+  history.replaceState(null, '', `?world=${worldId}&seed=${save.seed}`);
   loadModal.classList.remove('open');
   homeScreen.remove();
-  startGame(name, save.seed, save);
+  startGame(name, save.seed, save, worldId);
 }
 
 // --- Game ---
-function startGame(worldName, seed, saveData) {
+function startGame(worldName, seed, saveData, worldId) {
   const world    = new World(scene, seed);
   const player   = new Player(camera, world);
   const controls = new Controls(renderer.domElement);
@@ -194,15 +215,23 @@ function startGame(worldName, seed, saveData) {
   }
 
   async function doSave() {
+    if (!worldName) return;
     player.yaw   = controls.yaw;
     player.pitch = controls.pitch;
     await SaveManager.save(worldName, seed, world, player, sky);
   }
 
-  window.addEventListener('beforeunload', doSave);
+  function handleUnload() {
+    multiplayer.leave();
+    doSave();
+  }
+
+  window.addEventListener('beforeunload', handleUnload);
   uiManager.onQuit = async () => {
+    multiplayer.leave();
+    shareBtn.remove();
+    window.removeEventListener('beforeunload', handleUnload);
     await doSave();
-    window.removeEventListener('beforeunload', doSave);
   };
 
   const AUTOSAVE_INTERVAL = 30;
@@ -214,6 +243,25 @@ function startGame(worldName, seed, saveData) {
   let _wasUnderwater = false;
 
   const playerBody = new PlayerBody(scene);
+
+  const multiplayer = new Multiplayer(scene, worldId, crypto.randomUUID());
+  multiplayer.join(() => ({
+    pos: { x: player.pos.x, y: player.pos.y, z: player.pos.z },
+    yaw: controls.yaw,
+    vel: { x: player.vel.x, y: player.vel.y, z: player.vel.z },
+  }));
+
+  // Share link button
+  const shareBtn = document.createElement('button');
+  shareBtn.id = 'mp-share-btn';
+  shareBtn.textContent = 'Share Link';
+  shareBtn.style.cssText = 'position:fixed;top:8px;right:8px;z-index:200;padding:4px 10px;background:#222;color:#fff;border:1px solid #555;border-radius:4px;cursor:pointer;font-size:12px;opacity:0.85';
+  shareBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(location.href);
+    shareBtn.textContent = 'Copied!';
+    setTimeout(() => { shareBtn.textContent = 'Share Link'; }, 1500);
+  });
+  document.body.appendChild(shareBtn);
 
   const dir = new THREE.Vector3();
   let lastTime = performance.now();
@@ -235,6 +283,7 @@ function startGame(worldName, seed, saveData) {
     }
 
     sky.update(dt, camera, world.material, world.waterMaterial);
+    multiplayer.update(dt, sky.ambient);
     updateParticles(dt);
 
     if (!uiManager.inventoryOpen) {
@@ -296,5 +345,7 @@ function startGame(worldName, seed, saveData) {
   }
 
   loop();
-  renderer.domElement.requestPointerLock().catch(() => {});
+  renderer.domElement.requestPointerLock().catch(() => {
+    document.addEventListener('click', () => renderer.domElement.requestPointerLock(), { once: true });
+  });
 }
